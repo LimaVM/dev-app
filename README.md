@@ -14,8 +14,13 @@ Um sistema completo de controle financeiro pessoal desenvolvido com HTML/CSS pur
 - Seleção de cores para cada categoria
 - Exclusão de categorias (quando não há gastos associados)
 
+### 🏦 Gerenciamento de Contas
+- Cadastro de contas bancárias com saldo e limite de crédito
+- Exclusão de contas
+
 ### 💸 Controle de Gastos
 - Cadastro de gastos com valor, categoria, data e descrição
+- Escolha da forma de pagamento (débito, crédito ou PIX) e conta associada
 - Edição e exclusão de gastos
 - Filtros por período e categoria
 - Validações de dados

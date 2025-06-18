@@ -258,7 +258,7 @@ function addExpensesList(doc, y, margin, contentWidth) {
         .slice(0, 10);
     
     const rowHeight = 6;
-    const colWidths = [contentWidth * 0.25, contentWidth * 0.35, contentWidth * 0.2, contentWidth * 0.2];
+    const colWidths = [contentWidth * 0.2, contentWidth * 0.3, contentWidth * 0.2, contentWidth * 0.15, contentWidth * 0.15];
     
     // Cabeçalho
     doc.setFillColor(248, 249, 250);
@@ -271,7 +271,8 @@ function addExpensesList(doc, y, margin, contentWidth) {
     doc.text('Data', margin + 2, y + 4);
     doc.text('Descrição', margin + colWidths[0] + 2, y + 4);
     doc.text('Categoria', margin + colWidths[0] + colWidths[1] + 2, y + 4);
-    doc.text('Valor (R$)', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+    doc.text('Forma', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+    doc.text('Valor (R$)', margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2, y + 4);
     
     y += rowHeight;
     
@@ -293,7 +294,8 @@ function addExpensesList(doc, y, margin, contentWidth) {
         doc.text(truncatedDesc, margin + colWidths[0] + 2, y + 4);
         
         doc.text(expense.categoryName || 'Sem categoria', margin + colWidths[0] + colWidths[1] + 2, y + 4);
-        doc.text(`R$ ${formatCurrency(expense.amount)}`, margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+        doc.text(expense.paymentMethod || '', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+        doc.text(`R$ ${formatCurrency(expense.amount)}`, margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2, y + 4);
         
         y += rowHeight;
     });
@@ -414,6 +416,7 @@ function buildPdfHtml() {
                         <th style="border:1px solid #ccc; padding:4px;">Data</th>
                         <th style="border:1px solid #ccc; padding:4px;">Descrição</th>
                         <th style="border:1px solid #ccc; padding:4px;">Categoria</th>
+                        <th style="border:1px solid #ccc; padding:4px;">Forma</th>
                         <th style="border:1px solid #ccc; padding:4px;">Valor</th>
                     </tr>
                 </thead>
@@ -427,6 +430,7 @@ function buildPdfHtml() {
                     <td style="border:1px solid #ccc; padding:4px;">${formatDate(exp.date)}</td>
                     <td style="border:1px solid #ccc; padding:4px;">${desc}</td>
                     <td style="border:1px solid #ccc; padding:4px;">${exp.categoryName || 'Sem categoria'}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">${exp.paymentMethod || ''}</td>
                     <td style="border:1px solid #ccc; padding:4px;">R$ ${formatCurrency(exp.amount)}</td>
                 </tr>
             `;
@@ -464,14 +468,15 @@ function generateCSV() {
     }
 
     // Lista de gastos
-    lines.push('Data,Categoria,Descrição,Valor');
+    lines.push('Data,Categoria,Descrição,Forma,Valor');
     const sorted = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
     sorted.forEach(exp => {
         const date = formatDate(exp.date);
         const category = exp.categoryName || 'Sem categoria';
         const desc = (exp.description || '').replace(/"/g, '""');
         const value = formatCurrencyForCSV(exp.amount);
-        lines.push(`"${date}","${category}","${desc}","${value}"`);
+        const method = exp.paymentMethod || '';
+        lines.push(`"${date}","${category}","${desc}","${method}","${value}"`);
     });
 
     const csvContent = lines.join('\n');
