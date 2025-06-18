@@ -57,10 +57,15 @@ function readUserData(userId) {
         fs.writeFileSync(userDataPath, JSON.stringify(defaultData, null, 2));
         return defaultData;
     }
-    
+
     try {
-        const data = fs.readFileSync(userDataPath, 'utf8');
-        return JSON.parse(data);
+        const data = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+        return {
+            categories: data.categories || [],
+            expenses: data.expenses || [],
+            accounts: data.accounts || [],
+            settings: data.settings || {}
+        };
     } catch (error) {
         return { categories: [], expenses: [], accounts: [], settings: {} };
     }
