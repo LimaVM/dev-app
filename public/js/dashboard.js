@@ -256,6 +256,7 @@ function updateAccountsDisplay() {
 
     if (accounts.length === 0) {
         container.innerHTML = '<p class="text-center">Nenhuma conta cadastrada.</p>';
+        updateTotalBalance();
         return;
     }
 
@@ -270,6 +271,7 @@ function updateAccountsDisplay() {
             </div>
         </div>
     `).join('');
+    updateTotalBalance();
 }
 
 function updateAccountSelect() {
@@ -575,6 +577,14 @@ function updateStatsDisplay() {
     document.getElementById('totalAmount').textContent = `R$ ${formatCurrency(analytics.totalAmount || 0)}`;
     document.getElementById('dailyAverage').textContent = `R$ ${formatCurrency(analytics.dailyAverage || 0)}`;
     document.getElementById('expenseCount').textContent = analytics.expenseCount || 0;
+}
+
+function updateTotalBalance() {
+    const total = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+    const display = document.getElementById('totalBalanceDisplay');
+    if (display) {
+        display.textContent = `R$ ${formatCurrency(total)}`;
+    }
 }
 
 // Utilitários de Modal

@@ -421,6 +421,13 @@ tr:hover {
     gap: 10px;
 }
 
+.total-balance {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #333;
+}
+
 /* Alertas */
 .alert {
     padding: 15px 20px;

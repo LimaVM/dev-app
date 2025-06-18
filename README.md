@@ -17,6 +17,7 @@ Um sistema completo de controle financeiro pessoal desenvolvido com HTML/CSS pur
 ### 🏦 Gerenciamento de Contas
 - Cadastro de contas bancárias com saldo e limite de crédito
 - Exclusão de contas
+- Visualização do saldo total e dos saldos individuais
 
 ### 💸 Controle de Gastos
 - Cadastro de gastos com valor, categoria, data e descrição
