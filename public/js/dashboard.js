@@ -1,5 +1,4 @@
 // Variáveis globais
-let currentUser = null;
 let categories = [];
 let expenses = [];
 let analytics = {};
