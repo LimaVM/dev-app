@@ -123,7 +123,8 @@ function updateCategorySelects() {
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category.id;
-            option.textContent = category.name;
+            option.textContent = `\u25CF ${category.name}`; // bullet + name
+            option.style.color = category.color;
             if (category.id === currentValue) {
                 option.selected = true;
             }
