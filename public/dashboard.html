@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle Financeiro</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header do Dashboard -->
+        <div class="dashboard-header">
+            <div class="user-info">
+                <h2>Olá, <span id="userName">Usuário</span>! 👋</h2>
+                <p>Bem-vindo ao seu painel financeiro</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-success btn-sm" onclick="openModal('categoryModal')">
+                    ➕ Nova Categoria
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openModal('expenseModal')">
+                    💰 Novo Gasto
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="generatePDF()">
+                    📄 Gerar PDF
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="logout()">
+                    🚪 Sair
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters">
+            <h3>📊 Filtros e Período</h3>
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="startDate">Data Inicial</label>
+                    <input type="date" id="startDate" onchange="updateAnalytics()">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">Data Final</label>
+                    <input type="date" id="endDate" onchange="updateAnalytics()">
+                </div>
+                <div class="form-group">
+                    <label for="categoryFilter">Categoria</label>
+                    <select id="categoryFilter" onchange="loadExpenses()">
+                        <option value="">Todas as categorias</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="setCurrentMonth()">Mês Atual</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards de Estatísticas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">💰</div>
+                <h3 id="totalAmount">R$ 0,00</h3>
+                <p>Total Gasto</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">📅</div>
+                <h3 id="dailyAverage">R$ 0,00</h3>
+                <p>Média Diária</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">📝</div>
+                <h3 id="expenseCount">0</h3>
+                <p>Total de Gastos</p>
+            </div>
+            <div class="stat-card">
+                <div class="icon">🏷️</div>
+                <h3 id="categoryCount">0</h3>
+                <p>Categorias</p>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>📊 Gastos por Categoria (%)</h3>
+                <canvas id="pieChart" width="400" height="400"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>📈 Valores por Categoria</h3>
+                <canvas id="barChart" width="400" height="400"></canvas>
+            </div>
+        </div>
+
+        <!-- Conteúdo Principal -->
+        <div class="main-content">
+            <!-- Gerenciar Categorias -->
+            <div class="section">
+                <h3>🏷️ Suas Categorias</h3>
+                <div id="categoriesList">
+                    <p class="text-center">Carregando categorias...</p>
+                </div>
+            </div>
+
+            <!-- Lista de Gastos Recentes -->
+            <div class="section">
+                <h3>💸 Gastos Recentes</h3>
+                <div id="recentExpenses">
+                    <p class="text-center">Carregando gastos...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista Completa de Gastos -->
+        <div class="expenses-list">
+            <h3>📋 Todos os Gastos</h3>
+            <div id="expensesList">
+                <p class="text-center">Carregando gastos...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Nova Categoria -->
+    <div class="modal" id="categoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Nova Categoria</h3>
+                <button class="close-btn" onclick="closeModal('categoryModal')">&times;</button>
+            </div>
+            <form id="categoryForm">
+                <div class="form-group">
+                    <label for="categoryName">Nome da Categoria</label>
+                    <input type="text" id="categoryName" name="name" required placeholder="Ex: Alimentação, Transporte...">
+                </div>
+                <div class="form-group">
+                    <label for="categoryColor">Cor</label>
+                    <input type="color" id="categoryColor" name="color" value="#007bff">
+                </div>
+                <button type="submit" class="btn btn-primary">Criar Categoria</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Novo Gasto -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="expenseModalTitle">💰 Novo Gasto</h3>
+                <button class="close-btn" onclick="closeModal('expenseModal')">&times;</button>
+            </div>
+            <form id="expenseForm">
+                <input type="hidden" id="expenseId" name="id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="expenseAmount">Valor (R$)</label>
+                        <input type="number" id="expenseAmount" name="amount" step="0.01" min="0" required placeholder="0,00">
+                    </div>
+                    <div class="form-group">
+                        <label for="expenseDate">Data</label>
+                        <input type="date" id="expenseDate" name="date" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="expenseCategory">Categoria</label>
+                    <select id="expenseCategory" name="categoryId" required>
+                        <option value="">Selecione uma categoria</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expenseDescription">Descrição (opcional)</label>
+                    <input type="text" id="expenseDescription" name="description" placeholder="Descrição do gasto...">
+                </div>
+                <button type="submit" class="btn btn-primary" id="expenseSubmitBtn">Adicionar Gasto</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/dashboard.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/pdf.js"></script>
+</body>
+</html>
+
