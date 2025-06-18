@@ -9,75 +9,27 @@ async function generatePDF() {
         
         showAlert('Gerando relatório PDF...', 'info');
         
-        // Obter dados dos gráficos se a função estiver disponível
-        const chartsData = typeof getChartsData === 'function' ? getChartsData() : null;
-        
         // Criar novo documento PDF
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        // Configurações
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 20;
-        const contentWidth = pageWidth - (margin * 2);
-        
-        let currentY = margin;
-        
-        // Cabeçalho do relatório
-        currentY = addHeader(doc, currentY, margin, contentWidth);
-        
-        // Informações do período
-        currentY = addPeriodInfo(doc, currentY, margin, contentWidth);
-        
-        // Resumo financeiro
-        currentY = addFinancialSummary(doc, currentY, margin, contentWidth);
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 100) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Gráficos (se disponíveis)
-        if (chartsData && chartsData.pieImage) {
-            currentY = await addCharts(doc, currentY, margin, contentWidth, chartsData);
-        }
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 100) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Tabela de gastos por categoria
-        currentY = addCategoryTable(doc, currentY, margin, contentWidth);
 
-        // Verificar se precisa de nova página antes do menu pizza
-        if (currentY > pageHeight - 150) {
-            doc.addPage();
-            currentY = margin;
-        }
+        // Construir HTML do relatório
+        const container = document.createElement('div');
+        container.innerHTML = buildPdfHtml();
+        document.body.appendChild(container);
 
-        // Menu pizza
-        currentY = addPizzaMenu(doc, currentY, margin, contentWidth);
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 150) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Lista de gastos recentes
-        currentY = addExpensesList(doc, currentY, margin, contentWidth);
-
-        // Rodapé em todas as páginas
-        addFooter(doc);
-        
-        // Salvar PDF
         const fileName = `relatorio-financeiro-${formatDateForFile(new Date())}.pdf`;
-        doc.save(fileName);
-        
+
+        await doc.html(container, {
+            margin: 20,
+            autoPaging: 'text',
+            html2canvas: { scale: 0.6 },
+            callback: function (doc) {
+                doc.save(fileName);
+            }
+        });
+
+        document.body.removeChild(container);
         showAlert('Relatório PDF gerado com sucesso!', 'success');
         
     } catch (error) {
@@ -401,6 +353,90 @@ function hexToRgb(hex) {
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
     return [r, g, b];
+}
+
+function buildPdfHtml() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    const recentExpenses = expenses
+        ? [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10)
+        : [];
+
+    let html = `
+        <div style="font-family: Arial, sans-serif; color: #333; width: 100%;">
+            <h1 style="color: #667eea;">💰 Relatório Financeiro Pessoal</h1>
+            <p><strong>Usuário:</strong> ${currentUser.name}</p>
+            <p><strong>Gerado em:</strong> ${formatDate(new Date().toISOString())}</p>
+            <p><strong>Período:</strong> ${startDate && endDate ? `De ${formatDate(startDate)} até ${formatDate(endDate)}` : 'Todos os registros'}</p>
+            <hr/>
+            <h2>Resumo Financeiro</h2>
+            <ul>
+                <li><strong>Total Gasto:</strong> R$ ${formatCurrency(analytics.totalAmount || 0)}</li>
+                <li><strong>Média Diária:</strong> R$ ${formatCurrency(analytics.dailyAverage || 0)}</li>
+                <li><strong>Total de Gastos:</strong> ${analytics.expenseCount || 0}</li>
+            </ul>
+    `;
+
+    if (analytics.categoryData && analytics.categoryData.length > 0) {
+        html += `
+            <h2>Gastos por Categoria</h2>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #ccc; padding:4px; text-align:left;">Categoria</th>
+                        <th style="border:1px solid #ccc; padding:4px; text-align:left;">Valor (R$)</th>
+                        <th style="border:1px solid #ccc; padding:4px; text-align:left;">Quantidade</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        analytics.categoryData.forEach(cat => {
+            html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:4px;">${cat.name}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">${formatCurrency(cat.total)}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">${cat.count}</td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+    }
+
+    if (recentExpenses.length > 0) {
+        html += `
+            <h2>Últimos Gastos</h2>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #ccc; padding:4px;">Data</th>
+                        <th style="border:1px solid #ccc; padding:4px;">Descrição</th>
+                        <th style="border:1px solid #ccc; padding:4px;">Categoria</th>
+                        <th style="border:1px solid #ccc; padding:4px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        recentExpenses.forEach(exp => {
+            const desc = (exp.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:4px;">${formatDate(exp.date)}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">${desc}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">${exp.categoryName || 'Sem categoria'}</td>
+                    <td style="border:1px solid #ccc; padding:4px;">R$ ${formatCurrency(exp.amount)}</td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+    }
+
+    html += `</div>`;
+    return html;
 }
 
 function formatCurrencyForCSV(value) {
