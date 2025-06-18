@@ -9,8 +9,8 @@ async function generatePDF() {
         
         showAlert('Gerando relatório PDF...', 'info');
         
-        // Obter dados dos gráficos
-        const chartsData = getChartsData();
+        // Obter dados dos gráficos se a função estiver disponível
+        const chartsData = typeof getChartsData === 'function' ? getChartsData() : null;
         
         // Criar novo documento PDF
         const { jsPDF } = window.jspdf;

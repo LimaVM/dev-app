@@ -423,7 +423,9 @@ async function updateAnalytics() {
         if (response.ok) {
             analytics = data;
             updateStatsDisplay();
-            updateCharts();
+            if (typeof updateCharts === 'function') {
+                updateCharts();
+            }
         } else {
             throw new Error(data.error || 'Erro ao carregar análises');
         }
