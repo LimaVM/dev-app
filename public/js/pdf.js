@@ -70,9 +70,9 @@ async function generatePDF() {
         
         // Lista de gastos recentes
         currentY = addExpensesList(doc, currentY, margin, contentWidth);
-        
-        // Rodapé
-        addFooter(doc, pageHeight, margin, contentWidth);
+
+        // Rodapé em todas as páginas
+        addFooter(doc);
         
         // Salvar PDF
         const fileName = `relatorio-financeiro-${formatDateForFile(new Date())}.pdf`;
@@ -356,21 +356,30 @@ function addExpensesList(doc, y, margin, contentWidth) {
     return y;
 }
 
-function addFooter(doc, pageHeight, margin, contentWidth) {
-    const footerY = pageHeight - 15;
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(102, 102, 102);
-    
-    // Linha separadora
-    doc.setDrawColor(233, 236, 239);
-    doc.setLineWidth(0.5);
-    doc.line(margin, footerY - 5, margin + contentWidth, footerY - 5);
-    
-    // Texto do rodapé
-    doc.text('Relatório gerado pelo Sistema de Controle Financeiro Pessoal', margin, footerY);
-    doc.text(`Página 1 - ${formatDate(new Date().toISOString())}`, margin + contentWidth - 60, footerY);
+function addFooter(doc) {
+    const pageCount = doc.getNumberOfPages();
+
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const contentWidth = pageWidth - margin * 2;
+        const footerY = pageHeight - 15;
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(102, 102, 102);
+
+        // Linha separadora
+        doc.setDrawColor(233, 236, 239);
+        doc.setLineWidth(0.5);
+        doc.line(margin, footerY - 5, margin + contentWidth, footerY - 5);
+
+        // Texto do rodapé
+        doc.text('Relatório gerado pelo Sistema de Controle Financeiro Pessoal', margin, footerY);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 40, footerY);
+    }
 }
 
 // Funções utilitárias para PDF
@@ -392,6 +401,59 @@ function hexToRgb(hex) {
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
     return [r, g, b];
+}
+
+function formatCurrencyForCSV(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
+}
+
+function generateCSV() {
+    if (!expenses || expenses.length === 0) {
+        showAlert('Não há gastos para exportar', 'error');
+        return;
+    }
+
+    const lines = [];
+
+    // Resumo por categoria
+    if (analytics.categoryData && analytics.categoryData.length > 0) {
+        lines.push('Categoria,Total,Quantidade');
+        analytics.categoryData.forEach(cat => {
+            lines.push(`"${cat.name}","${formatCurrencyForCSV(cat.total)}","${cat.count}"`);
+        });
+        lines.push('');
+    }
+
+    // Lista de gastos
+    lines.push('Data,Categoria,Descrição,Valor');
+    const sorted = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach(exp => {
+        const date = formatDate(exp.date);
+        const category = exp.categoryName || 'Sem categoria';
+        const desc = (exp.description || '').replace(/"/g, '""');
+        const value = formatCurrencyForCSV(exp.amount);
+        lines.push(`"${date}","${category}","${desc}","${value}"`);
+    });
+
+    const csvContent = lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `gastos-${formatDateForFile(new Date())}.csv`;
+
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, fileName);
+    } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    showAlert('Arquivo CSV exportado com sucesso!', 'success');
 }
 
 // Função para verificar se jsPDF está carregado
