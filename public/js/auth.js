@@ -1,15 +1,28 @@
 // Variáveis globais
 let currentUser = null;
 
-// Verificar se já está logado
+// Verificar se já está logado e inicializar formulários somente na página de autenticação
 document.addEventListener('DOMContentLoaded', function() {
+    const isAuthPage = document.getElementById('loginForm') && document.getElementById('registerForm');
     const userData = localStorage.getItem('currentUser');
+
     if (userData) {
         currentUser = JSON.parse(userData);
-        window.location.href = '/dashboard';
+        // Redirecionar para o dashboard apenas se estiver na tela de login
+        if (isAuthPage) {
+            window.location.href = '/dashboard';
+            return;
+        }
+    } else if (!isAuthPage) {
+        // Se estiver no dashboard e não houver usuário, forçar login
+        window.location.href = '/';
+        return;
     }
-    
-    initializeAuth();
+
+    // Inicializar abas e formulários apenas na tela de autenticação
+    if (isAuthPage) {
+        initializeAuth();
+    }
 });
 
 function initializeAuth() {
