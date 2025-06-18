@@ -274,6 +274,23 @@ body {
     cursor: pointer;
 }
 
+.form-group select option {
+    padding: 8px;
+}
+
+.color-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.color-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+}
+
 .form-group select:focus {
     outline: none;
     border-color: #667eea;
@@ -402,6 +419,13 @@ tr:hover {
 .expense-actions {
     display: flex;
     gap: 10px;
+}
+
+.total-balance {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #333;
 }
 
 /* Alertas */

@@ -51,17 +51,23 @@ function readUserData(userId) {
         const defaultData = {
             categories: [],
             expenses: [],
+            accounts: [],
             settings: {}
         };
         fs.writeFileSync(userDataPath, JSON.stringify(defaultData, null, 2));
         return defaultData;
     }
-    
+
     try {
-        const data = fs.readFileSync(userDataPath, 'utf8');
-        return JSON.parse(data);
+        const data = JSON.parse(fs.readFileSync(userDataPath, 'utf8'));
+        return {
+            categories: data.categories || [],
+            expenses: data.expenses || [],
+            accounts: data.accounts || [],
+            settings: data.settings || {}
+        };
     } catch (error) {
-        return { categories: [], expenses: [], settings: {} };
+        return { categories: [], expenses: [], accounts: [], settings: {} };
     }
 }
 
@@ -207,6 +213,59 @@ app.delete('/api/categories/:userId/:categoryId', (req, res) => {
     }
 });
 
+// Rotas de contas bancárias
+app.get('/api/accounts/:userId', (req, res) => {
+    try {
+        const { userId } = req.params;
+        const userData = readUserData(userId);
+        res.json(userData.accounts || []);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar contas' });
+    }
+});
+
+app.post('/api/accounts/:userId', (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { name, balance = 0, creditBalance = 0 } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Nome da conta é obrigatório' });
+        }
+
+        const userData = readUserData(userId);
+
+        const newAccount = {
+            id: uuidv4(),
+            name,
+            balance: parseFloat(balance),
+            creditBalance: parseFloat(creditBalance),
+            createdAt: new Date().toISOString()
+        };
+
+        userData.accounts.push(newAccount);
+        writeUserData(userId, userData);
+
+        res.json(newAccount);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao criar conta' });
+    }
+});
+
+app.delete('/api/accounts/:userId/:accountId', (req, res) => {
+    try {
+        const { userId, accountId } = req.params;
+        const userData = readUserData(userId);
+
+        userData.accounts = userData.accounts.filter(acc => acc.id !== accountId);
+        writeUserData(userId, userData);
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir conta' });
+    }
+});
+
 // Rotas de gastos
 app.get('/api/expenses/:userId', (req, res) => {
     try {
@@ -229,13 +288,15 @@ app.get('/api/expenses/:userId', (req, res) => {
             expenses = expenses.filter(expense => expense.categoryId === categoryId);
         }
         
-        // Adicionar informações da categoria
+        // Adicionar informações da categoria e conta
         expenses = expenses.map(expense => {
             const category = userData.categories.find(cat => cat.id === expense.categoryId);
+            const account = userData.accounts.find(acc => acc.id === expense.accountId);
             return {
                 ...expense,
                 categoryName: category ? category.name : 'Categoria não encontrada',
-                categoryColor: category ? category.color : '#ccc'
+                categoryColor: category ? category.color : '#ccc',
+                accountName: account ? account.name : null
             };
         });
         
@@ -248,7 +309,7 @@ app.get('/api/expenses/:userId', (req, res) => {
 app.post('/api/expenses/:userId', (req, res) => {
     try {
         const { userId } = req.params;
-        const { amount, categoryId, date, description } = req.body;
+        const { amount, categoryId, date, description, accountId, paymentMethod } = req.body;
         
         if (!amount || !categoryId || !date) {
             return res.status(400).json({ error: 'Valor, categoria e data são obrigatórios' });
@@ -266,6 +327,8 @@ app.post('/api/expenses/:userId', (req, res) => {
             id: uuidv4(),
             amount: parseFloat(amount),
             categoryId,
+            accountId: accountId || null,
+            paymentMethod: paymentMethod || 'debito',
             date,
             description: description || '',
             createdAt: new Date().toISOString()
@@ -287,7 +350,7 @@ app.post('/api/expenses/:userId', (req, res) => {
 app.put('/api/expenses/:userId/:expenseId', (req, res) => {
     try {
         const { userId, expenseId } = req.params;
-        const { amount, categoryId, date, description } = req.body;
+        const { amount, categoryId, date, description, accountId, paymentMethod } = req.body;
         
         const userData = readUserData(userId);
         const expenseIndex = userData.expenses.findIndex(exp => exp.id === expenseId);
@@ -309,6 +372,8 @@ app.put('/api/expenses/:userId/:expenseId', (req, res) => {
             ...userData.expenses[expenseIndex],
             amount: amount !== undefined ? parseFloat(amount) : userData.expenses[expenseIndex].amount,
             categoryId: categoryId || userData.expenses[expenseIndex].categoryId,
+            accountId: accountId !== undefined ? accountId : userData.expenses[expenseIndex].accountId,
+            paymentMethod: paymentMethod || userData.expenses[expenseIndex].paymentMethod,
             date: date || userData.expenses[expenseIndex].date,
             description: description !== undefined ? description : userData.expenses[expenseIndex].description,
             updatedAt: new Date().toISOString()

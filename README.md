@@ -14,8 +14,14 @@ Um sistema completo de controle financeiro pessoal desenvolvido com HTML/CSS pur
 - Seleção de cores para cada categoria
 - Exclusão de categorias (quando não há gastos associados)
 
+### 🏦 Gerenciamento de Contas
+- Cadastro de contas bancárias com saldo e limite de crédito
+- Exclusão de contas
+- Visualização do saldo total e dos saldos individuais
+
 ### 💸 Controle de Gastos
 - Cadastro de gastos com valor, categoria, data e descrição
+- Escolha da forma de pagamento (débito, crédito ou PIX) e conta associada
 - Edição e exclusão de gastos
 - Filtros por período e categoria
 - Validações de dados
@@ -31,6 +37,7 @@ Um sistema completo de controle financeiro pessoal desenvolvido com HTML/CSS pur
 - Relatórios completos em PDF
 - Inclui gráficos, tabelas e estatísticas
 - Layout profissional e organizado
+- Três modelos de template selecionáveis
 - Download automático
 
 ## 🛠️ Tecnologias Utilizadas
@@ -126,6 +133,7 @@ node server.js
 ### 4. Visualizando Relatórios
 - Use os filtros de data para selecionar o período
 - Visualize os gráficos de pizza e barras
+- Escolha um modelo no seletor de template
 - Clique em "📄 Gerar PDF" para baixar o relatório
 
 ## 🔧 Configurações

@@ -6,71 +6,32 @@ async function generatePDF() {
             showAlert('Não há dados suficientes para gerar o relatório', 'error');
             return;
         }
-        
+
         showAlert('Gerando relatório PDF...', 'info');
-        
-        // Obter dados dos gráficos
-        const chartsData = getChartsData();
-        
-        // Criar novo documento PDF
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        // Configurações
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 20;
-        const contentWidth = pageWidth - (margin * 2);
-        
-        let currentY = margin;
-        
-        // Cabeçalho do relatório
-        currentY = addHeader(doc, currentY, margin, contentWidth);
-        
-        // Informações do período
-        currentY = addPeriodInfo(doc, currentY, margin, contentWidth);
-        
-        // Resumo financeiro
-        currentY = addFinancialSummary(doc, currentY, margin, contentWidth);
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 100) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Gráficos (se disponíveis)
-        if (chartsData && chartsData.pieImage) {
-            currentY = await addCharts(doc, currentY, margin, contentWidth, chartsData);
-        }
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 100) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Tabela de gastos por categoria
-        currentY = addCategoryTable(doc, currentY, margin, contentWidth);
-        
-        // Verificar se precisa de nova página
-        if (currentY > pageHeight - 150) {
-            doc.addPage();
-            currentY = margin;
-        }
-        
-        // Lista de gastos recentes
-        currentY = addExpensesList(doc, currentY, margin, contentWidth);
-        
-        // Rodapé
-        addFooter(doc, pageHeight, margin, contentWidth);
-        
-        // Salvar PDF
+
+        await loadRobotoFont(doc);
+
+        const container = document.createElement('div');
+        container.innerHTML = await buildPdfHtml();
+        document.body.appendChild(container);
+
         const fileName = `relatorio-financeiro-${formatDateForFile(new Date())}.pdf`;
-        doc.save(fileName);
-        
+
+        await doc.html(container, {
+            margin: 20,
+            autoPaging: 'text',
+            html2canvas: { scale: 0.6 },
+            callback: function (doc) {
+                doc.save(fileName);
+            }
+        });
+
+        document.body.removeChild(container);
         showAlert('Relatório PDF gerado com sucesso!', 'success');
-        
+
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);
         showAlert('Erro ao gerar relatório PDF', 'error');
@@ -251,7 +212,32 @@ function addCategoryTable(doc, y, margin, contentWidth) {
     doc.rect(margin, y - (analytics.categoryData.length + 1) * rowHeight, contentWidth, (analytics.categoryData.length + 1) * rowHeight);
     
     y += 15;
-    
+
+    return y;
+}
+
+function addPizzaMenu(doc, y, margin, contentWidth) {
+    if (!analytics.categoryData || analytics.categoryData.length === 0) {
+        return y;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text('🍕 Menu Pizza', margin, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    analytics.categoryData.forEach(category => {
+        const rgb = hexToRgb(category.color || '#000000');
+        doc.setTextColor(...rgb);
+        doc.text('●', margin, y);
+        doc.setTextColor(51, 51, 51);
+        doc.text(`${category.name} - R$ ${formatCurrency(category.total)}`, margin + 5, y);
+        y += 6;
+    });
+
+    y += 10;
     return y;
 }
 
@@ -272,7 +258,7 @@ function addExpensesList(doc, y, margin, contentWidth) {
         .slice(0, 10);
     
     const rowHeight = 6;
-    const colWidths = [contentWidth * 0.25, contentWidth * 0.35, contentWidth * 0.2, contentWidth * 0.2];
+    const colWidths = [contentWidth * 0.2, contentWidth * 0.3, contentWidth * 0.2, contentWidth * 0.15, contentWidth * 0.15];
     
     // Cabeçalho
     doc.setFillColor(248, 249, 250);
@@ -285,7 +271,8 @@ function addExpensesList(doc, y, margin, contentWidth) {
     doc.text('Data', margin + 2, y + 4);
     doc.text('Descrição', margin + colWidths[0] + 2, y + 4);
     doc.text('Categoria', margin + colWidths[0] + colWidths[1] + 2, y + 4);
-    doc.text('Valor (R$)', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+    doc.text('Forma', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+    doc.text('Valor (R$)', margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2, y + 4);
     
     y += rowHeight;
     
@@ -307,7 +294,8 @@ function addExpensesList(doc, y, margin, contentWidth) {
         doc.text(truncatedDesc, margin + colWidths[0] + 2, y + 4);
         
         doc.text(expense.categoryName || 'Sem categoria', margin + colWidths[0] + colWidths[1] + 2, y + 4);
-        doc.text(`R$ ${formatCurrency(expense.amount)}`, margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+        doc.text(expense.paymentMethod || '', margin + colWidths[0] + colWidths[1] + colWidths[2] + 2, y + 4);
+        doc.text(`R$ ${formatCurrency(expense.amount)}`, margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2, y + 4);
         
         y += rowHeight;
     });
@@ -322,21 +310,30 @@ function addExpensesList(doc, y, margin, contentWidth) {
     return y;
 }
 
-function addFooter(doc, pageHeight, margin, contentWidth) {
-    const footerY = pageHeight - 15;
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(102, 102, 102);
-    
-    // Linha separadora
-    doc.setDrawColor(233, 236, 239);
-    doc.setLineWidth(0.5);
-    doc.line(margin, footerY - 5, margin + contentWidth, footerY - 5);
-    
-    // Texto do rodapé
-    doc.text('Relatório gerado pelo Sistema de Controle Financeiro Pessoal', margin, footerY);
-    doc.text(`Página 1 - ${formatDate(new Date().toISOString())}`, margin + contentWidth - 60, footerY);
+function addFooter(doc) {
+    const pageCount = doc.getNumberOfPages();
+
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const contentWidth = pageWidth - margin * 2;
+        const footerY = pageHeight - 15;
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(102, 102, 102);
+
+        // Linha separadora
+        doc.setDrawColor(233, 236, 239);
+        doc.setLineWidth(0.5);
+        doc.line(margin, footerY - 5, margin + contentWidth, footerY - 5);
+
+        // Texto do rodapé
+        doc.text('Relatório gerado pelo Sistema de Controle Financeiro Pessoal', margin, footerY);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 40, footerY);
+    }
 }
 
 // Funções utilitárias para PDF
@@ -349,6 +346,127 @@ function formatCurrencyForPDF(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(value);
+}
+
+function hexToRgb(hex) {
+    const sanitized = hex.replace('#', '');
+    const bigint = parseInt(sanitized, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return [r, g, b];
+}
+
+async function loadRobotoFont(doc) {
+    const res = await fetch('fonts/Roboto-Regular.base64.txt');
+    const base64 = (await res.text()).trim();
+    doc.addFileToVFS('Roboto-Regular.ttf', base64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+}
+
+async function buildPdfHtml() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    const templateSelect = document.getElementById('pdfTemplate');
+    const templateName = templateSelect ? templateSelect.value : 'template1';
+    const response = await fetch(`pdf-templates/${templateName}.html`);
+    let template = await response.text();
+
+    const recentExpenses = expenses
+        ? [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10)
+        : [];
+    let periodText = 'Todos os registros';
+    if (startDate && endDate) {
+        periodText = `De ${formatDate(startDate)} até ${formatDate(endDate)}`;
+    }
+
+    template = template.replace(/{{userName}}/g, currentUser.name);
+    template = template.replace(/{{generationDate}}/g, formatDate(new Date().toISOString()));
+    template = template.replace(/{{period}}/g, periodText);
+    template = template.replace(/{{totalAmount}}/g, formatCurrency(analytics.totalAmount || 0));
+    template = template.replace(/{{dailyAverage}}/g, formatCurrency(analytics.dailyAverage || 0));
+    template = template.replace(/{{expenseCount}}/g, analytics.expenseCount || 0);
+
+    if (analytics.categoryData && analytics.categoryData.length > 0) {
+        let rows = '';
+        analytics.categoryData.forEach(cat => {
+            rows += `<tr><td>${cat.name}</td><td>${formatCurrency(cat.total)}</td><td>${cat.count}</td></tr>`;
+        });
+        const table = `<h2>Gastos por Categoria</h2><table><thead><tr><th>Categoria</th><th>Valor (R$)</th><th>Quantidade</th></tr></thead><tbody>${rows}</tbody></table>`;
+        template = template.replace('{{categoryTable}}', table);
+    } else {
+        template = template.replace('{{categoryTable}}', '');
+    }
+
+    if (recentExpenses.length > 0) {
+        let rows = '';
+        recentExpenses.forEach(exp => {
+            const desc = (exp.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            rows += `<tr><td>${formatDate(exp.date)}</td><td>${desc}</td><td>${exp.categoryName || 'Sem categoria'}</td><td>${exp.paymentMethod || ''}</td><td>R$ ${formatCurrency(exp.amount)}</td></tr>`;
+        });
+        const table = `<h2>Últimos Gastos</h2><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Forma</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
+        template = template.replace('{{expensesTable}}', table);
+    } else {
+        template = template.replace('{{expensesTable}}', '');
+    }
+
+    return template;
+}
+
+function formatCurrencyForCSV(value) {
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
+}
+
+function generateCSV() {
+    if (!expenses || expenses.length === 0) {
+        showAlert('Não há gastos para exportar', 'error');
+        return;
+    }
+
+    const lines = [];
+
+    // Resumo por categoria
+    if (analytics.categoryData && analytics.categoryData.length > 0) {
+        lines.push('Categoria,Total,Quantidade');
+        analytics.categoryData.forEach(cat => {
+            lines.push(`"${cat.name}","${formatCurrencyForCSV(cat.total)}","${cat.count}"`);
+        });
+        lines.push('');
+    }
+
+    // Lista de gastos
+    lines.push('Data,Categoria,Descrição,Forma,Valor');
+    const sorted = [...expenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach(exp => {
+        const date = formatDate(exp.date);
+        const category = exp.categoryName || 'Sem categoria';
+        const desc = (exp.description || '').replace(/"/g, '""');
+        const value = formatCurrencyForCSV(exp.amount);
+        const method = exp.paymentMethod || '';
+        lines.push(`"${date}","${category}","${desc}","${method}","${value}"`);
+    });
+
+    const csvContent = lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `gastos-${formatDateForFile(new Date())}.csv`;
+
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(blob, fileName);
+    } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    showAlert('Arquivo CSV exportado com sucesso!', 'success');
 }
 
 // Função para verificar se jsPDF está carregado

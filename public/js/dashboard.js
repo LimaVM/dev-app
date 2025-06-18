@@ -1,6 +1,6 @@
 // Variáveis globais
-let currentUser = null;
 let categories = [];
+let accounts = [];
 let expenses = [];
 let analytics = {};
 
@@ -26,7 +26,23 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     // Formulário de categoria
     document.getElementById('categoryForm').addEventListener('submit', handleCategorySubmit);
+
+    // Selecionar cor de categoria
+    const colorBtn = document.getElementById('confirmCategoryColor');
+    if (colorBtn) {
+        colorBtn.addEventListener('click', function() {
+            const picker = document.getElementById('categoryColorPicker');
+            const hidden = document.getElementById('categoryColor');
+            const preview = document.getElementById('categoryColorPreview');
+            const color = picker.value;
+            hidden.value = color;
+            preview.style.backgroundColor = color;
+        });
+    }
     
+    // Formulário de conta
+    document.getElementById('accountForm').addEventListener('submit', handleAccountSubmit);
+
     // Formulário de gasto
     document.getElementById('expenseForm').addEventListener('submit', handleExpenseSubmit);
     
@@ -53,6 +69,7 @@ async function loadInitialData() {
     try {
         await Promise.all([
             loadCategories(),
+            loadAccounts(),
             loadExpenses(),
             updateAnalytics()
         ]);
@@ -123,7 +140,8 @@ function updateCategorySelects() {
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category.id;
-            option.textContent = category.name;
+            option.textContent = `\u25CF ${category.name}`; // bullet + name
+            option.style.color = category.color;
             if (category.id === currentValue) {
                 option.selected = true;
             }
@@ -214,6 +232,121 @@ async function deleteCategory(categoryId) {
     }
 }
 
+// Gerenciamento de Contas
+async function loadAccounts() {
+    try {
+        const response = await fetch(`/api/accounts/${currentUser.id}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            accounts = data;
+            updateAccountsDisplay();
+            updateAccountSelect();
+        } else {
+            throw new Error(data.error || 'Erro ao carregar contas');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar contas:', error);
+        showAlert('Erro ao carregar contas', 'error');
+    }
+}
+
+function updateAccountsDisplay() {
+    const container = document.getElementById('accountsList');
+
+    if (accounts.length === 0) {
+        container.innerHTML = '<p class="text-center">Nenhuma conta cadastrada.</p>';
+        updateTotalBalance();
+        return;
+    }
+
+    container.innerHTML = accounts.map(acc => `
+        <div class="expense-item">
+            <div class="expense-info">
+                <strong>${acc.name}</strong>
+                <div class="expense-date">Saldo: R$ ${formatCurrency(acc.balance)} | Crédito: R$ ${formatCurrency(acc.creditBalance)}</div>
+            </div>
+            <div class="expense-actions">
+                <button class="btn btn-danger btn-sm" onclick="deleteAccount('${acc.id}')">🗑️ Excluir</button>
+            </div>
+        </div>
+    `).join('');
+    updateTotalBalance();
+}
+
+function updateAccountSelect() {
+    const select = document.getElementById('expenseAccount');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">Selecione</option>';
+    accounts.forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.id;
+        option.textContent = acc.name;
+        if (acc.id === current) option.selected = true;
+        select.appendChild(option);
+    });
+}
+
+async function handleAccountSubmit(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const accountData = {
+        name: formData.get('name').trim(),
+        balance: parseFloat(formData.get('balance') || 0),
+        creditBalance: parseFloat(formData.get('creditBalance') || 0)
+    };
+
+    if (!accountData.name) {
+        showAlert('Nome da conta é obrigatório', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/accounts/${currentUser.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(accountData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showAlert('Conta criada com sucesso!', 'success');
+            closeModal('accountModal');
+            event.target.reset();
+            await loadAccounts();
+        } else {
+            showAlert(result.error || 'Erro ao criar conta', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao criar conta:', error);
+        showAlert('Erro de conexão', 'error');
+    }
+}
+
+async function deleteAccount(accountId) {
+    if (!confirm('Tem certeza que deseja excluir esta conta?')) return;
+    try {
+        const response = await fetch(`/api/accounts/${currentUser.id}/${accountId}`, { method: 'DELETE' });
+        const result = await response.json();
+
+        if (response.ok) {
+            showAlert('Conta excluída com sucesso!', 'success');
+            await loadAccounts();
+            await loadExpenses();
+        } else {
+            showAlert(result.error || 'Erro ao excluir conta', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir conta:', error);
+        showAlert('Erro de conexão', 'error');
+    }
+}
+
+// Gerenciamento de Gastos
+
 // Gerenciamento de Gastos
 async function loadExpenses() {
     try {
@@ -262,6 +395,7 @@ function updateExpensesDisplay() {
                         ${expense.categoryName}
                     </span>
                     <span class="expense-date">${formatDate(expense.date)}</span>
+                    ${expense.paymentMethod ? `<span style="font-size:0.8rem;">${expense.paymentMethod}</span>` : ''}
                 </div>
                 ${expense.description ? `<div style="color: #666; font-size: 0.9rem;">${expense.description}</div>` : ''}
             </div>
@@ -297,6 +431,7 @@ function updateRecentExpenses() {
                         ${expense.categoryName}
                     </span>
                     <span class="expense-date">${formatDate(expense.date)}</span>
+                    ${expense.paymentMethod ? `<span style="font-size:0.8rem;">${expense.paymentMethod}</span>` : ''}
                 </div>
             </div>
         </div>
@@ -311,6 +446,8 @@ async function handleExpenseSubmit(event) {
     const expenseData = {
         amount: parseFloat(formData.get('amount')),
         categoryId: formData.get('categoryId'),
+        accountId: formData.get('accountId') || null,
+        paymentMethod: formData.get('paymentMethod'),
         date: formData.get('date'),
         description: formData.get('description').trim()
     };
@@ -371,6 +508,8 @@ function editExpense(expenseId) {
     document.getElementById('expenseId').value = expense.id;
     document.getElementById('expenseAmount').value = expense.amount;
     document.getElementById('expenseCategory').value = expense.categoryId;
+    document.getElementById('expenseAccount').value = expense.accountId || '';
+    document.getElementById('paymentMethod').value = expense.paymentMethod || 'debito';
     document.getElementById('expenseDate').value = expense.date;
     document.getElementById('expenseDescription').value = expense.description || '';
     
@@ -422,7 +561,9 @@ async function updateAnalytics() {
         if (response.ok) {
             analytics = data;
             updateStatsDisplay();
-            updateCharts();
+            if (typeof updateCharts === 'function') {
+                updateCharts();
+            }
         } else {
             throw new Error(data.error || 'Erro ao carregar análises');
         }
@@ -436,6 +577,14 @@ function updateStatsDisplay() {
     document.getElementById('totalAmount').textContent = `R$ ${formatCurrency(analytics.totalAmount || 0)}`;
     document.getElementById('dailyAverage').textContent = `R$ ${formatCurrency(analytics.dailyAverage || 0)}`;
     document.getElementById('expenseCount').textContent = analytics.expenseCount || 0;
+}
+
+function updateTotalBalance() {
+    const total = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+    const display = document.getElementById('totalBalanceDisplay');
+    if (display) {
+        display.textContent = `R$ ${formatCurrency(total)}`;
+    }
 }
 
 // Utilitários de Modal
@@ -455,8 +604,9 @@ function openModal(modalId) {
             document.getElementById('expenseSubmitBtn').textContent = 'Adicionar Gasto';
         }
         
-        // Atualizar categorias no select
+        // Atualizar selects
         updateCategorySelects();
+        updateAccountSelect();
     }
 }
 

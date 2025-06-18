@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            color: #333;
+        }
+        h1 {
+            color: #667eea;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 4px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div id="report">
+        <h1>💰 Relatório Financeiro Pessoal</h1>
+        <p><strong>Usuário:</strong> {{userName}}</p>
+        <p><strong>Gerado em:</strong> {{generationDate}}</p>
+        <p><strong>Período:</strong> {{period}}</p>
+        <h2>Resumo Financeiro</h2>
+        <ul>
+            <li><strong>Total Gasto:</strong> R$ {{totalAmount}}</li>
+            <li><strong>Média Diária:</strong> R$ {{dailyAverage}}</li>
+            <li><strong>Total de Gastos:</strong> {{expenseCount}}</li>
+        </ul>
+        {{categoryTable}}
+        {{expensesTable}}
+    </div>
+</body>
+</html>
