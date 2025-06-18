@@ -121,8 +121,13 @@
                     <input type="text" id="categoryName" name="name" required placeholder="Ex: Alimentação, Transporte...">
                 </div>
                 <div class="form-group">
-                    <label for="categoryColor">Cor</label>
-                    <input type="color" id="categoryColor" name="color" value="#007bff">
+                    <label for="categoryColorPicker">Cor</label>
+                    <div class="color-picker">
+                        <input type="color" id="categoryColorPicker" value="#007bff">
+                        <button type="button" id="confirmCategoryColor" class="btn btn-secondary btn-sm">OK</button>
+                        <div id="categoryColorPreview" class="color-preview" style="background: #007bff;"></div>
+                    </div>
+                    <input type="hidden" id="categoryColor" name="color" value="#007bff">
                 </div>
                 <button type="submit" class="btn btn-primary">Criar Categoria</button>
             </form>

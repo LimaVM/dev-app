@@ -52,6 +52,15 @@ async function generatePDF() {
         
         // Tabela de gastos por categoria
         currentY = addCategoryTable(doc, currentY, margin, contentWidth);
+
+        // Verificar se precisa de nova página antes do menu pizza
+        if (currentY > pageHeight - 150) {
+            doc.addPage();
+            currentY = margin;
+        }
+
+        // Menu pizza
+        currentY = addPizzaMenu(doc, currentY, margin, contentWidth);
         
         // Verificar se precisa de nova página
         if (currentY > pageHeight - 150) {
@@ -251,7 +260,32 @@ function addCategoryTable(doc, y, margin, contentWidth) {
     doc.rect(margin, y - (analytics.categoryData.length + 1) * rowHeight, contentWidth, (analytics.categoryData.length + 1) * rowHeight);
     
     y += 15;
-    
+
+    return y;
+}
+
+function addPizzaMenu(doc, y, margin, contentWidth) {
+    if (!analytics.categoryData || analytics.categoryData.length === 0) {
+        return y;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text('🍕 Menu Pizza', margin, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    analytics.categoryData.forEach(category => {
+        const rgb = hexToRgb(category.color || '#000000');
+        doc.setTextColor(...rgb);
+        doc.text('●', margin, y);
+        doc.setTextColor(51, 51, 51);
+        doc.text(`${category.name} - R$ ${formatCurrency(category.total)}`, margin + 5, y);
+        y += 6;
+    });
+
+    y += 10;
     return y;
 }
 
@@ -349,6 +383,15 @@ function formatCurrencyForPDF(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(value);
+}
+
+function hexToRgb(hex) {
+    const sanitized = hex.replace('#', '');
+    const bigint = parseInt(sanitized, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return [r, g, b];
 }
 
 // Função para verificar se jsPDF está carregado

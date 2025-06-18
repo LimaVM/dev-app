@@ -25,6 +25,19 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     // Formulário de categoria
     document.getElementById('categoryForm').addEventListener('submit', handleCategorySubmit);
+
+    // Selecionar cor de categoria
+    const colorBtn = document.getElementById('confirmCategoryColor');
+    if (colorBtn) {
+        colorBtn.addEventListener('click', function() {
+            const picker = document.getElementById('categoryColorPicker');
+            const hidden = document.getElementById('categoryColor');
+            const preview = document.getElementById('categoryColorPreview');
+            const color = picker.value;
+            hidden.value = color;
+            preview.style.backgroundColor = color;
+        });
+    }
     
     // Formulário de gasto
     document.getElementById('expenseForm').addEventListener('submit', handleExpenseSubmit);
